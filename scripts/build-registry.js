@@ -179,10 +179,18 @@ Object.keys(rootRegistry).forEach(packageName => {
   const json = JSON.stringify(packageData, null, 2);
   
   // npm-style: GET /<packageName> should return JSON
-  fs.writeFileSync(path.join(OUTPUT_DIR, packageName), json);
+  const pkgPath = path.join(OUTPUT_DIR, packageName);
+  if (fs.existsSync(pkgPath) && fs.statSync(pkgPath).isDirectory()) {
+    fs.rmSync(pkgPath, { recursive: true, force: true });
+  }
+  fs.writeFileSync(pkgPath, json);
   
   // Also write .json for debugging
-  fs.writeFileSync(path.join(OUTPUT_DIR, `${packageName}.json`), json);
+  const pkgJsonPath = path.join(OUTPUT_DIR, `${packageName}.json`);
+  if (fs.existsSync(pkgJsonPath) && fs.statSync(pkgJsonPath).isDirectory()) {
+    fs.rmSync(pkgJsonPath, { recursive: true, force: true });
+  }
+  fs.writeFileSync(pkgJsonPath, json);
   
   console.log(`  ✓ ${packageName}`);
 });
