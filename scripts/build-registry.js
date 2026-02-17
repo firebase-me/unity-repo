@@ -171,16 +171,16 @@ Object.keys(rootRegistry).forEach(packageName => {
 
 console.log('\nWriting root registry metadata...');
 
-// Write individual package metadata files as .json directly
+// Write individual package metadata files (npm-style)
 Object.keys(rootRegistry).forEach(packageName => {
   const packageData = rootRegistry[packageName];
+  const json = JSON.stringify(packageData, null, 2);
   
-  // Write as {packageName}.json for direct access
-  const jsonPath = path.join(OUTPUT_DIR, `${packageName}.json`);
-  fs.writeFileSync(
-    jsonPath,
-    JSON.stringify(packageData, null, 2)
-  );
+  // npm-style: GET /<packageName> should return JSON
+  fs.writeFileSync(path.join(OUTPUT_DIR, packageName), json);
+  
+  // Also write .json for debugging
+  fs.writeFileSync(path.join(OUTPUT_DIR, `${packageName}.json`), json);
   
   console.log(`  ✓ ${packageName}`);
 });
@@ -199,6 +199,26 @@ const registryIndex = {
 fs.writeFileSync(
   path.join(OUTPUT_DIR, 'index.json'),
   JSON.stringify(registryIndex, null, 2)
+);
+
+// Write npm-style "/-/all" endpoint for package listing
+const dashDir = path.join(OUTPUT_DIR, '-');
+if (!fs.existsSync(dashDir)) {
+  fs.mkdirSync(dashDir, { recursive: true });
+}
+
+const allIndex = {};
+Object.keys(rootRegistry).forEach(packageName => {
+  allIndex[packageName] = rootRegistry[packageName];
+});
+
+fs.writeFileSync(
+  path.join(dashDir, 'all'),
+  JSON.stringify(allIndex, null, 2)
+);
+fs.writeFileSync(
+  path.join(dashDir, 'all.json'),
+  JSON.stringify(allIndex, null, 2)
 );
 
 // Generate HTML page
