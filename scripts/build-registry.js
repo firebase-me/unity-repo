@@ -86,6 +86,8 @@ majorVersions.forEach(majorVersion => {
       
       // Add version entry
       const { shasum, integrity } = computeHashes(tgzPath);
+      const isEdm = name === 'com.google.external-dependency-manager';
+      const tarballUrl = `${BASE_URL}/${majorVersion}/${tgzFile}${isEdm ? '?v=2' : ''}`;
       registry[name].versions[version] = {
         name,
         version,
@@ -94,7 +96,7 @@ majorVersions.forEach(majorVersion => {
         unity: unity || '2020.1',
         dependencies: dependencies || {},
         dist: {
-          tarball: `${BASE_URL}/${majorVersion}/${tgzFile}`,
+          tarball: tarballUrl,
           shasum,
           integrity
         }
