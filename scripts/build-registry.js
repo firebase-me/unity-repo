@@ -116,7 +116,7 @@ majorVersions.forEach(majorVersion => {
       }
       
       // Add version entry
-      const { shasum, integrity } = computeHashes(tgzPath);
+      const { shasum, integrity } = computeHashesFromFile(tgzPath);
       const isEdm = name === 'com.google.external-dependency-manager';
       const tarballUrl = `${BASE_URL}/${majorVersion}/${tgzFile}${isEdm ? '?v=2' : ''}`;
       registry[name].versions[version] = {
