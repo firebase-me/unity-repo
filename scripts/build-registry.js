@@ -2,12 +2,43 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const crypto = require('crypto');
+const https = require('https');
 
-function computeHashes(filePath) {
-  const data = fs.readFileSync(filePath);
+// Parse command line args
+const REMOTE_MODE = process.argv.includes('--remote');
+
+function computeHashes(data) {
   const shasum = crypto.createHash('sha1').update(data).digest('hex');
   const integrity = `sha512-${crypto.createHash('sha512').update(data).digest('base64')}`;
   return { shasum, integrity };
+}
+
+function computeHashesFromFile(filePath) {
+  const data = fs.readFileSync(filePath);
+  return computeHashes(data);
+}
+
+async function fetchRemoteFile(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return fetchRemoteFile(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+        return;
+      }
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+async function computeHashesRemote(url) {
+  const data = await fetchRemoteFile(url);
+  return computeHashes(data);
 }
 
 const PACKAGES_DIR = path.join(__dirname, '..', 'packages');
