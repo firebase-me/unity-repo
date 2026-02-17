@@ -8,10 +8,9 @@ yarn-error.log*
 scripts/temp/
 *.tmp
 
-# Generated files
-docs/
-!docs/CNAME
-!docs/index.html
+# Generated files (keep structure files)
+docs/*
+!docs/.gitkeep
 
 # OS
 .DS_Store

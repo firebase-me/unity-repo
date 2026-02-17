@@ -171,14 +171,14 @@ Object.keys(rootRegistry).forEach(packageName => {
 
 console.log('\nWriting root registry metadata...');
 
-// Write individual package metadata files at root
+// Write individual package metadata files as .json directly
 Object.keys(rootRegistry).forEach(packageName => {
   const packageData = rootRegistry[packageName];
-  const packageDir = path.join(OUTPUT_DIR, packageName);
   
-  fs.mkdirSync(packageDir, { recursive: true });
+  // Write as {packageName}.json for direct access
+  const jsonPath = path.join(OUTPUT_DIR, `${packageName}.json`);
   fs.writeFileSync(
-    path.join(packageDir, 'index.json'),
+    jsonPath,
     JSON.stringify(packageData, null, 2)
   );
   
