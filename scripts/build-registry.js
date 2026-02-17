@@ -1,0 +1,285 @@
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+const PACKAGES_DIR = path.join(__dirname, '..', 'packages');
+const OUTPUT_DIR = path.join(__dirname, '..', 'docs');
+const REPO_URL = 'https://github.com/firebase-me/unity-repo';
+const BASE_URL = 'https://firebase-me.github.io/unity-repo';
+
+// Ensure output directory exists
+if (!fs.existsSync(OUTPUT_DIR)) {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
+
+console.log('Building Unity Package Registry...\n');
+
+// Get all major version directories
+const majorVersions = fs.readdirSync(PACKAGES_DIR)
+  .filter(f => {
+    const fullPath = path.join(PACKAGES_DIR, f);
+    return fs.statSync(fullPath).isDirectory() && /^\d+$/.test(f);
+  })
+  .sort((a, b) => parseInt(b) - parseInt(a)); // Sort descending
+
+console.log(`Found major versions: ${majorVersions.join(', ')}\n`);
+
+const allRegistries = {};
+
+// Process each major version
+majorVersions.forEach(majorVersion => {
+  console.log(`\n📦 Processing Major Version ${majorVersion}`);
+  console.log('='.repeat(50));
+  
+  const majorVersionDir = path.join(PACKAGES_DIR, majorVersion);
+  const tgzFiles = fs.readdirSync(majorVersionDir).filter(f => f.endsWith('.tgz'));
+  
+  console.log(`Found ${tgzFiles.length} packages\n`);
+  
+  const registry = {};
+  
+  tgzFiles.forEach(tgzFile => {
+    console.log(`  Processing: ${tgzFile}`);
+    
+    const tgzPath = path.join(majorVersionDir, tgzFile);
+    const tempDir = path.join(__dirname, 'temp', path.basename(tgzFile, '.tgz'));
+    
+    // Clean temp directory
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true });
+    }
+    fs.mkdirSync(tempDir, { recursive: true });
+    
+    // Extract package.json from tarball
+    try {
+      execSync(`tar -xzf "${tgzPath}" -C "${tempDir}"`, { stdio: 'ignore' });
+      
+      const packageJsonPath = path.join(tempDir, 'package', 'package.json');
+      if (!fs.existsSync(packageJsonPath)) {
+        console.error(`    ❌ No package.json found in ${tgzFile}`);
+        return;
+      }
+      
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      const { name, version, displayName, description, unity, dependencies } = packageJson;
+      
+      console.log(`    ✓ ${name}@${version}`);
+      
+      // Initialize package registry entry
+      if (!registry[name]) {
+        registry[name] = {
+          name,
+          versions: {},
+          'dist-tags': { latest: version }
+        };
+      }
+      
+      // Add version entry
+      registry[name].versions[version] = {
+        name,
+        version,
+        displayName,
+        description: description || '',
+        unity: unity || '2020.1',
+        dependencies: dependencies || {},
+        dist: {
+          tarball: `${BASE_URL}/${majorVersion}/${tgzFile}`,
+          shasum: '' // Integrity check
+        }
+      };
+      
+      // Update latest version
+      const versions = Object.keys(registry[name].versions).sort((a, b) => {
+        const aParts = a.split('.').map(Number);
+        const bParts = b.split('.').map(Number);
+        for (let i = 0; i < 3; i++) {
+          if (aParts[i] !== bParts[i]) return bParts[i] - aParts[i];
+        }
+        return 0;
+      });
+      registry[name]['dist-tags'].latest = versions[0];
+      
+    } catch (error) {
+      console.error(`    ❌ Error processing ${tgzFile}:`, error.message);
+    } finally {
+      // Cleanup temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true });
+      }
+    }
+  });
+  
+  // Store registry for this major version
+  allRegistries[majorVersion] = registry;
+  
+  // Copy .tgz files to output directory
+  console.log(`\n  Copying packages...`);
+  const versionOutputDir = path.join(OUTPUT_DIR, majorVersion);
+  if (!fs.existsSync(versionOutputDir)) {
+    fs.mkdirSync(versionOutputDir, { recursive: true });
+  }
+  
+  tgzFiles.forEach(tgzFile => {
+    const srcPath = path.join(majorVersionDir, tgzFile);
+    const destPath = path.join(versionOutputDir, tgzFile);
+    fs.copyFileSync(srcPath, destPath);
+    console.log(`    ✓ ${tgzFile}`);
+  });
+});
+
+// Clean up temp directory
+const tempBaseDir = path.join(__dirname, 'temp');
+if (fs.existsSync(tempBaseDir)) {
+  fs.rmSync(tempBaseDir, { recursive: true });
+}
+
+console.log('\n\n📦 Generating Registry Metadata');
+console.log('='.repeat(50));
+
+// Merge all versions into a single root registry
+const rootRegistry = {};
+
+majorVersions.forEach(majorVersion => {
+  const registry = allRegistries[majorVersion];
+  
+  Object.keys(registry).forEach(packageName => {
+    if (!rootRegistry[packageName]) {
+      rootRegistry[packageName] = {
+        name: packageName,
+        versions: {},
+        'dist-tags': { latest: '' }
+      };
+    }
+    
+    // Merge versions from this major version
+    Object.assign(rootRegistry[packageName].versions, registry[packageName].versions);
+  });
+});
+
+// Update latest tags for each package
+Object.keys(rootRegistry).forEach(packageName => {
+  const versions = Object.keys(rootRegistry[packageName].versions).sort((a, b) => {
+    const aParts = a.split('.').map(Number);
+    const bParts = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      if (aParts[i] !== bParts[i]) return bParts[i] - aParts[i];
+    }
+    return 0;
+  });
+  rootRegistry[packageName]['dist-tags'].latest = versions[0];
+});
+
+console.log('\nWriting root registry metadata...');
+
+// Write individual package metadata files at root
+Object.keys(rootRegistry).forEach(packageName => {
+  const packageData = rootRegistry[packageName];
+  const packageDir = path.join(OUTPUT_DIR, packageName);
+  
+  fs.mkdirSync(packageDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packageDir, 'index.json'),
+    JSON.stringify(packageData, null, 2)
+  );
+  
+  console.log(`  ✓ ${packageName}`);
+});
+
+// Write root registry index
+const registryIndex = {
+  name: 'Firebase Unity Packages',
+  version: '1.0.0',
+  packages: Object.keys(rootRegistry).map(name => ({
+    name,
+    versions: Object.keys(rootRegistry[name].versions),
+    latest: rootRegistry[name]['dist-tags'].latest
+  }))
+};
+
+fs.writeFileSync(
+  path.join(OUTPUT_DIR, 'index.json'),
+  JSON.stringify(registryIndex, null, 2)
+);
+
+// Generate HTML page
+console.log('\n\n🌐 Generating HTML Page');
+console.log('='.repeat(50));
+
+const registryUrl = BASE_URL;
+  
+const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Unity Package Registry</title>
+  <style>
+    body { font-family: system-ui; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+    h1 { color: #FFA000; }
+    pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    .package { border: 1px solid #e0e0e0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .version { display: inline-block; background: #e3f2fd; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 0.9em; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+    .version-badge { background: #4CAF50; color: white; padding: 4px 8px; margin-left: 5px; border-radius: 3px; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>🔥 Firebase Unity Package Registry</h1>
+  <p>UPM-compatible Unity package registry for all Firebase SDK versions.</p>
+  
+  <h2>📦 Usage</h2>
+  <p>Add this to your Unity project's <code>Packages/manifest.json</code>:</p>
+  <pre>{
+  "scopedRegistries": [{
+    "name": "Firebase Me",
+    "url": "${registryUrl}",
+    "scopes": ["com.google.firebase"]
+  }],
+  "dependencies": {
+    "com.google.firebase.analytics": "13.8.0",
+    "com.google.firebase.auth": "10.0.0"
+  }
+}</pre>
+
+  <h2>📋 Available Packages</h2>
+  <p>All packages across major versions ${majorVersions.join(', ')}</p>
+  ${Object.keys(rootRegistry).map(name => {
+    const pkg = rootRegistry[name];
+    const latest = pkg['dist-tags'].latest;
+    const allVersions = Object.keys(pkg.versions).sort((a, b) => {
+      const aParts = a.split('.').map(Number);
+      const bParts = b.split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        if (aParts[i] !== bParts[i]) return bParts[i] - aParts[i];
+      }
+      return 0;
+    });
+    return `
+  <div class="package">
+    <h3>${pkg.versions[latest].displayName || name} <span class="version-badge">Latest: ${latest}</span></h3>
+    <p><strong>Package:</strong> <code>${name}</code></p>
+    <p><strong>Available versions:</strong> ${allVersions.map(v => `<span class="version">${v}</span>`).join(' ')}</p>
+    <p>${pkg.versions[latest].description}</p>
+  </div>`;
+  }).join('')}
+  
+  <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666;">
+    <p>Registry URL: <code>${registryUrl}</code></p>
+    <p>Repository: <a href="${REPO_URL}">${REPO_URL}</a></p>
+  </footer>
+</body>
+</html>`;
+
+fs.writeFileSync(path.join(OUTPUT_DIR, 'index.html'), html);
+console.log('  ✓ Root index page');
+
+console.log(`\n✅ Registry built successfully!`);
+console.log(`   Output: ${OUTPUT_DIR}`);
+console.log(`   Packages: ${Object.keys(rootRegistry).length}`);
+console.log(`   Total versions across all packages: ${Object.values(rootRegistry).reduce((sum, pkg) => sum + Object.keys(pkg.versions).length, 0)}`);
+console.log(`   Major versions: ${majorVersions.join(', ')}`);
+console.log(`\n🌐 Registry URL: ${BASE_URL}`);
+console.log(`\n📦 Packages are served from:`);
+majorVersions.forEach(v => {
+  console.log(`   • /${v}/ - Firebase ${v}.x packages`);
+});

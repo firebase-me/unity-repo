@@ -1,0 +1,47 @@
+name: Publish Package Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            Firebase Unity Package Registry Release ${{ steps.version.outputs.VERSION }}
+            
+            This release contains Firebase Unity packages that can be installed via the Unity Package Manager.
+            
+            ## Installation
+            Add the following to your `Packages/manifest.json`:
+            ```json
+            {
+              "scopedRegistries": [{
+                "name": "Firebase Me",
+                "url": "https://firebase-me.github.io/unity-repo/unity",
+                "scopes": ["com.google.firebase"]
+              }]
+            }
+            ```
+          files: |
+            packages/*.tgz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,29 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temp files
+scripts/temp/
+*.tmp
+
+# Generated files
+docs/
+!docs/CNAME
+!docs/index.html
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Build artifacts
+*.log
