@@ -11,6 +11,8 @@ const BASE_URL = 'https://firebase-me.github.io/unity-repo';
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
+// Disable Jekyll processing on GitHub Pages
+fs.writeFileSync(path.join(OUTPUT_DIR, '.nojekyll'), '');
 
 console.log('Building Unity Package Registry...\n');
 
