@@ -1,6 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const crypto = require('crypto');
+
+function computeHashes(filePath) {
+  const data = fs.readFileSync(filePath);
+  const shasum = crypto.createHash('sha1').update(data).digest('hex');
+  const integrity = `sha512-${crypto.createHash('sha512').update(data).digest('base64')}`;
+  return { shasum, integrity };
+}
 
 const PACKAGES_DIR = path.join(__dirname, '..', 'packages');
 const OUTPUT_DIR = path.join(__dirname, '..', 'docs');
@@ -77,6 +85,7 @@ majorVersions.forEach(majorVersion => {
       }
       
       // Add version entry
+      const { shasum, integrity } = computeHashes(tgzPath);
       registry[name].versions[version] = {
         name,
         version,
@@ -86,7 +95,8 @@ majorVersions.forEach(majorVersion => {
         dependencies: dependencies || {},
         dist: {
           tarball: `${BASE_URL}/${majorVersion}/${tgzFile}`,
-          shasum: '' // Integrity check
+          shasum,
+          integrity
         }
       };
       
