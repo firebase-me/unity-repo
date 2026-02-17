@@ -117,8 +117,9 @@ majorVersions.forEach(majorVersion => {
       
       // Add version entry
       const { shasum, integrity } = computeHashesFromFile(tgzPath);
-      const isEdm = name === 'com.google.external-dependency-manager';
-      const tarballUrl = `${BASE_URL}/${majorVersion}/${tgzFile}${isEdm ? '?v=2' : ''}`;
+      // Cache-bust tarball URLs so Unity/UPM doesn't try to resume partial downloads across registry updates.
+      // Using a stable content-derived query param ensures the URL changes if the tarball bytes ever change.
+      const tarballUrl = `${BASE_URL}/${majorVersion}/${tgzFile}?i=${shasum}`;
       registry[name].versions[version] = {
         name,
         version,
