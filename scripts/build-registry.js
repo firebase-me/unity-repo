@@ -256,13 +256,18 @@ const html = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Firebase Unity Package Registry</title>
   <style>
-    body { font-family: system-ui; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-    h1 { color: #FFA000; }
-    pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
-    .package { border: 1px solid #e0e0e0; padding: 15px; margin: 10px 0; border-radius: 5px; }
-    .version { display: inline-block; background: #e3f2fd; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 0.9em; }
-    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
-    .version-badge { background: #4CAF50; color: white; padding: 4px 8px; margin-left: 5px; border-radius: 3px; font-size: 0.85em; }
+    body { font-family: system-ui; max-width: 1200px; margin: 40px auto; padding: 0 20px; background: #1a1a2e; color: #e0e0e0; }
+    h1 { color: #FFCA28; }
+    h2 { color: #FFA000; }
+    h3 { color: #FFD54F; }
+    a { color: #FFCA28; }
+    a:hover { color: #FFE082; }
+    pre { background: #0f0f1a; padding: 15px; border-radius: 5px; overflow-x: auto; border: 1px solid #2a2a4a; color: #c5c5d5; }
+    .package { border: 1px solid #2a2a4a; padding: 15px; margin: 10px 0; border-radius: 5px; background: #16162b; }
+    .package:hover { border-color: #FFA000; box-shadow: 0 0 8px rgba(255, 160, 0, 0.2); }
+    .version { display: inline-block; background: #2a2a4a; color: #FFCA28; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 0.9em; }
+    code { background: #2a2a4a; padding: 2px 6px; border-radius: 3px; color: #FFCA28; }
+    .version-badge { background: #FF6F00; color: #1a1a2e; padding: 4px 8px; margin-left: 5px; border-radius: 3px; font-size: 0.85em; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -305,7 +310,7 @@ const html = `<!DOCTYPE html>
   </div>`;
   }).join('')}
   
-  <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666;">
+  <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #2a2a4a; color: #888;">
     <p>Registry URL: <code>${registryUrl}</code></p>
     <p>Repository: <a href="${REPO_URL}">${REPO_URL}</a></p>
   </footer>
