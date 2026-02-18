@@ -1,0 +1,40 @@
+name: Publish to OpenUPM
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate token presence
+        env:
+          OPENUPM_TOKEN: ${{ secrets.OPENUPM_TOKEN }}
+        run: |
+          if [ -z "$OPENUPM_TOKEN" ]; then
+            echo "OPENUPM_TOKEN secret is missing. Add it in repo settings -> Secrets and variables -> Actions." >&2
+            exit 1
+          fi
+
+      - name: Publish packages (TODO: wire actual OpenUPM publish command)
+        env:
+          OPENUPM_TOKEN: ${{ secrets.OPENUPM_TOKEN }}
+        run: |
+          echo "TODO: publish oenupm/packages/* to OpenUPM using OPENUPM_TOKEN" >&2
+          echo "This workflow is intentionally a stub until the exact publish command is chosen." >&2
+          echo "Expected input folders: oenupm/packages/<packageName>/package.json" >&2
+          exit 1

@@ -78,6 +78,7 @@ majorVersions.forEach(majorVersion => {
   console.log(`Found ${tgzFiles.length} packages\n`);
   
   const registry = {};
+  const hashedTarballs = new Map(); // tgzFile -> hashed output filename
   
   tgzFiles.forEach(tgzFile => {
     console.log(`  Processing: ${tgzFile}`);
@@ -117,9 +118,11 @@ majorVersions.forEach(majorVersion => {
       
       // Add version entry
       const { shasum, integrity } = computeHashesFromFile(tgzPath);
-      // Cache-bust tarball URLs so Unity/UPM doesn't try to resume partial downloads across registry updates.
-      // Using a stable content-derived query param ensures the URL changes if the tarball bytes ever change.
-      const tarballUrl = `${BASE_URL}/${majorVersion}/${tgzFile}?i=${shasum}`;
+      // Unity/UPM appears to ignore query params for caching/resume in some cases.
+      // Serve tarballs with a content-hashed filename to guarantee a distinct URL per artifact.
+      const hashedTgzFile = `${path.basename(tgzFile, '.tgz')}-${shasum}.tgz`;
+      hashedTarballs.set(tgzFile, hashedTgzFile);
+      const tarballUrl = `${BASE_URL}/${majorVersion}/${hashedTgzFile}`;
       registry[name].versions[version] = {
         name,
         version,
@@ -158,7 +161,7 @@ majorVersions.forEach(majorVersion => {
   // Store registry for this major version
   allRegistries[majorVersion] = registry;
   
-  // Copy .tgz files to output directory
+  // Copy .tgz files to output directory (hashed filenames)
   console.log(`\n  Copying packages...`);
   const versionOutputDir = path.join(OUTPUT_DIR, majorVersion);
   if (!fs.existsSync(versionOutputDir)) {
@@ -166,10 +169,15 @@ majorVersions.forEach(majorVersion => {
   }
   
   tgzFiles.forEach(tgzFile => {
+    const hashedName = hashedTarballs.get(tgzFile);
+    if (!hashedName) {
+      console.log(`    ⚠ Skipping (no hash computed): ${tgzFile}`);
+      return;
+    }
     const srcPath = path.join(majorVersionDir, tgzFile);
-    const destPath = path.join(versionOutputDir, tgzFile);
+    const destPath = path.join(versionOutputDir, hashedName);
     fs.copyFileSync(srcPath, destPath);
-    console.log(`    ✓ ${tgzFile}`);
+    console.log(`    ✓ ${hashedName}`);
   });
 });
 
